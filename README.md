@@ -1,7 +1,7 @@
 # Pokedex-Retro
 Pokedex Retro es un proyecto basado en la actividad de consumo de Api de Pokemon. Pero agregando dos juegos  uno de combate y uno de adivina el Pokémon 
 
-[README.md](https://github.com/user-attachments/files/32080015/README.md)
+
 # 🎮 Pokédex Rojo Fuego · GBA Edition (8-Bits Retro)
 
 [![Licencia](https://img.shields.io/badge/Licencia-MIT-brightgreen.svg)](LICENSE)

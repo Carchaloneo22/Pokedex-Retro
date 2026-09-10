@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokédex Rojo Fuego · GBA Edition</title>
+  
+  <!-- Tipografía 8-Bits Retro 'Press Start 2P' -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  
+  <!-- Hoja de Estilos GBA -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Audio oculto para el minijuego '¿Quién es ese Pokémon?' -->
+  <audio id="whosThatPokemonAudio" src="https://www.myinstants.com/media/sounds/whos-that-pokemon.mp3" preload="auto"></audio>
+
+  <!-- Efecto de transición retro para inicio de combate -->
+  <div id="battleTransitionOverlay" class="battle-transition-overlay" style="display: none;"></div>
+
+  <!-- Contenedor Principal de la Consola GBA -->
+  <div class="gba-console">
+    <div class="crt-scanlines"></div>
+    
+    <!-- Barra Superior de Navegación Retro -->
+    <header class="retro-header">
+      <div class="header-brand">
+        <span class="pokeball-pixel-icon pokeball-spin"></span>
+        <h1 class="game-title">POKÉDEX ROJO FUEGO</h1>
+      </div>
+      <nav class="nav-controls">
+        <button id="navPokedexBtn" class="retro-btn active" title="Ir a la Pokédex">📖 POKÉDEX</button>
+        <button id="navCustomBattleBtn" class="retro-btn btn-fight pulse-btn" title="Combate 3 vs 3">⚔️ COMBATE 3v3</button>
+        <button id="navMinigameBtn" class="retro-btn btn-sound" title="Minijuego de adivinanza">❓ ¿QUIÉN ES?</button>
+      </nav>
+    </header>
+
+    <!-- SECCIÓN DE BÚSQUEDA Y CATEGORÍAS -->
+    <div id="pokedexControlsSection" class="pokedex-controls-section">
+      <!-- Barra de Búsqueda -->
+      <div class="retro-search-bar">
+        <label for="searchInput" class="search-icon">🔍</label>
+        <input type="text" id="searchInput" placeholder="BUSCAR POR NOMBRE O Nº..." autocomplete="off" spellcheck="false">
+        <button id="searchBtn" class="retro-btn btn-sm">BUSCAR</button>
+        <button id="clearSearchBtn" class="retro-btn btn-sm btn-subtle" title="Limpiar filtro">LIMPIAR</button>
+      </div>
+
+      <!-- Barra de Categorías Retro -->
+      <div class="categories-bar-wrapper">
+        <span class="categories-title">FILTRAR POR CATEGORÍA:</span>
+        <div id="categoriesContainer" class="categories-grid"></div>
+      </div>
+
+      <!-- Paginación Retro -->
+      <div id="paginationBar" class="pagination-bar" style="display: none;">
+        <button id="prevPageBtn" class="retro-btn btn-sm">◀ ANTERIOR</button>
+        <span id="pageIndicator" class="page-indicator">PÁGINA 1 / 1</span>
+        <button id="nextPageBtn" class="retro-btn btn-sm">SIGUIENTE ▶</button>
+      </div>
+    </div>
+
+    <!-- Indicador de Carga y Mensajes de Estado -->
+    <div id="statusBox" class="retro-status-box" style="display: none;"></div>
+    <div id="loaderBox" class="retro-loader" style="display: none;">
+      <div class="pixel-spinner"></div>
+      <p class="loading-text blink">CONSULTANDO DATOS DE LA POKÉAPI...</p>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- VISTA 1: GRID PRINCIPAL DE LA POKÉDEX         -->
+    <!-- ============================================== -->
+    <main id="pokedexView" class="view-container">
+      <div class="category-header-info">
+        <span id="currentCategoryLabel" class="current-category-label">⭐ INICIALES</span>
+        <span id="categoryCountLabel" class="category-count-label">Cargando...</span>
+      </div>
+      <div id="pokedexGrid" class="pokedex-grid"></div>
+    </main>
+
+    <!-- ============================================== -->
+    <!-- VISTA 2: MINIJUEGO "¿QUIÉN ES ESE POKÉMON?"    -->
+    <!-- ============================================== -->
+    <section id="minigameView" class="view-container minigame-screen" style="display: none;">
+      <div class="minigame-card">
+        <div class="minigame-hud">
+          <div class="hud-box">
+            <span class="hud-label">RACHA:</span>
+            <span id="minigameStreak" class="hud-value score-pop">0</span>
+          </div>
+          <div class="hud-box">
+            <span class="hud-label">RÉCORD:</span>
+            <span id="minigameBest" class="hud-value">0</span>
+          </div>
+        </div>
+
+        <div class="minigame-stage">
+          <div class="stage-backdrop">
+            <div class="stage-platform"></div>
+            <img id="minigameSprite" class="minigame-sprite silhouette" src="" alt="Silueta Pokémon">
+          </div>
+        </div>
+
+        <div class="retro-dialog-box minigame-dialog">
+          <p id="minigameMessage" class="dialog-text">¿QUIÉN ES ESE POKÉMON?</p>
+          <span class="dialog-cursor blink">▼</span>
+        </div>
+
+        <div id="minigameOptions" class="minigame-options-grid"></div>
+
+        <div class="minigame-actions">
+          <button id="minigameNextBtn" class="retro-btn btn-action" style="display: none;">SIGUIENTE POKÉMON ▶</button>
+          <button id="minigameExitBtn" class="retro-btn btn-subtle">⬅ VOLVER A POKÉDEX</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISTA 3: MODO BATALLA GBA 3 vs 3              -->
+    <!-- ============================================== -->
+    <section id="battleView" class="view-container battle-screen" style="display: none;">
+      <div class="battle-arena">
+        
+        <!-- Zona Rival (Arriba a la Derecha) -->
+        <div class="battle-side rival-side">
+          <div class="status-hud rival-hud">
+            <div class="hud-top">
+              <span id="rivalName" class="pokemon-name-tag">RIVAL</span>
+              <span id="rivalLevel" class="pokemon-lvl">Nv. 50</span>
+            </div>
+            <!-- Indicador de Pokéballs del Rival (3vs3) -->
+            <div class="team-pokeballs-bar" title="Pokémon restantes del Rival">
+              <span class="pokeballs-label">EQUIPO:</span>
+              <div id="rivalPokeballs" class="pokeballs-icons">
+                <span class="team-ball active">🔴</span>
+                <span class="team-ball active">🔴</span>
+                <span class="team-ball active">🔴</span>
+              </div>
+            </div>
+            <div class="hp-gauge-wrapper">
+              <span class="hp-tag">HP</span>
+              <div class="hp-bar-frame">
+                <div id="rivalHpFill" class="hp-bar-fill" style="width: 100%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="battle-platform rival-platform">
+            <img id="rivalSprite" class="battle-sprite float-idle" src="" alt="Pokémon Rival">
+            <span id="rivalDamagePopup" class="damage-number-popup" style="display: none;"></span>
+          </div>
+        </div>
+
+        <!-- Zona Jugador (Abajo a la Izquierda) -->
+        <div class="battle-side player-side">
+          <div class="battle-platform player-platform">
+            <img id="playerSprite" class="battle-sprite back-sprite float-idle-slow" src="" alt="Tu Pokémon">
+            <span id="playerDamagePopup" class="damage-number-popup" style="display: none;"></span>
+          </div>
+          <div class="status-hud player-hud">
+            <div class="hud-top">
+              <span id="playerName" class="pokemon-name-tag">TU POKÉMON</span>
+              <span id="playerLevel" class="pokemon-lvl">Nv. 50</span>
+            </div>
+            <!-- Indicador de Pokéballs del Jugador (3vs3) -->
+            <div class="team-pokeballs-bar" title="Tus Pokémon restantes">
+              <span class="pokeballs-label">EQUIPO:</span>
+              <div id="playerPokeballs" class="pokeballs-icons">
+                <span class="team-ball active">🔴</span>
+                <span class="team-ball active">🔴</span>
+                <span class="team-ball active">🔴</span>
+              </div>
+            </div>
+            <div class="hp-gauge-wrapper">
+              <span class="hp-tag">HP</span>
+              <div class="hp-bar-frame">
+                <div id="playerHpFill" class="hp-bar-fill" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="hp-values">
+              <span id="playerHpCurrent">100</span> / <span id="playerHpMax">100</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Panel Inferior de Comandos de Batalla -->
+      <div class="battle-control-panel">
+        <div class="retro-dialog-box battle-dialog">
+          <p id="battleMessage" class="dialog-text">¡COMBATE 3 VS 3 INICIADO!</p>
+          <span class="dialog-cursor blink">▼</span>
+        </div>
+
+        <div class="battle-commands">
+          <div id="battleMovesGrid" class="moves-grid"></div>
+          <div class="battle-subactions">
+            <button id="battleSwitchBtn" class="retro-btn btn-sound">🔄 CAMBIAR</button>
+            <button id="battleRunBtn" class="retro-btn btn-run">🏃 HUIR</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- MODAL 1: COMPARADOR DE ESTADÍSTICAS POKÉMON   -->
+    <!-- ============================================== -->
+    <div id="compareModal" class="retro-modal-overlay" style="display: none;">
+      <div class="retro-modal-window compare-window">
+        <div class="modal-header">
+          <h2 class="modal-title">⚖️ COMPARADOR DE ESTADÍSTICAS GBA</h2>
+          <button id="closeCompareBtn" class="retro-close-btn" aria-label="Cerrar modal">✖</button>
+        </div>
+
+        <div class="compare-modal-body">
+          <!-- Cabecera de Selección de Comparación -->
+          <div class="compare-selectors-grid">
+            <!-- Pokémon A (Seleccionado) -->
+            <div class="compare-col">
+              <span class="compare-col-tag">POKÉMON A</span>
+              <select id="compareSelectA" class="retro-select"></select>
+              <div class="compare-sprite-box">
+                <img id="compareSpriteA" class="compare-sprite float-idle" src="" alt="Pokémon A">
+              </div>
+              <h4 id="compareNameA" class="compare-name">---</h4>
+              <div id="compareTypesA" class="pokemon-types"></div>
+            </div>
+
+            <!-- VS Central -->
+            <div class="compare-vs-center">
+              <span class="vs-text pulse-scale">VS</span>
+            </div>
+
+            <!-- Pokémon B (Rival para comparar) -->
+            <div class="compare-col">
+              <span class="compare-col-tag">POKÉMON B (COMPARAR CON)</span>
+              <select id="compareSelectB" class="retro-select"></select>
+              <div class="compare-sprite-box">
+                <img id="compareSpriteB" class="compare-sprite float-idle" src="" alt="Pokémon B">
+              </div>
+              <h4 id="compareNameB" class="compare-name">---</h4>
+              <div id="compareTypesB" class="pokemon-types"></div>
+            </div>
+          </div>
+
+          <!-- Barras de Comparación de Estadísticas -->
+          <div class="stats-comparison-table">
+            <h3 class="stats-table-title">ESTADÍSTICAS BASE DE COMBATE</h3>
+            <div id="statsComparisonRows" class="stats-rows-container">
+              <!-- Filas de estadísticas generadas por JS -->
+            </div>
+          </div>
+
+          <!-- Comparativa de Datos Extra -->
+          <div class="extra-compare-grid">
+            <div class="extra-compare-box">
+              <span class="extra-tag">ALTURA / PESO:</span>
+              <p id="compareDimensions" class="extra-text">---</p>
+            </div>
+            <div class="extra-compare-box">
+              <span class="extra-tag">HABILIDADES:</span>
+              <p id="compareAbilities" class="extra-text">---</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="compareCloseOkBtn" class="retro-btn btn-sm">CERRAR (B)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODAL 2: CONFIGURADOR DE COMBATE 3 VS 3       -->
+    <!-- ============================================== -->
+    <div id="battleSetupModal" class="retro-modal-overlay" style="display: none;">
+      <div class="retro-modal-window battle-setup-3v3-window">
+        <div class="modal-header">
+          <h2 class="modal-title">⚔️ SALA DE COMBATE 3 VS 3</h2>
+          <button id="closeBattleSetupBtn" class="retro-close-btn" aria-label="Cerrar modal">✖</button>
+        </div>
+
+        <div class="battle-setup-body-3v3">
+          <!-- Equipo del Jugador (3 Pokémon) -->
+          <div class="setup-team-section">
+            <h3 class="setup-team-title">🔵 TU EQUIPO (3 LUCHADORES)</h3>
+            <div class="setup-team-grid">
+              <div class="setup-team-slot">
+                <span class="slot-num">#1</span>
+                <select id="teamSelect1" class="retro-select"></select>
+                <div class="slot-sprite-box">
+                  <img id="teamSprite1" class="slot-preview-sprite float-idle" src="" alt="Luchador 1">
+                </div>
+              </div>
+              <div class="setup-team-slot">
+                <span class="slot-num">#2</span>
+                <select id="teamSelect2" class="retro-select"></select>
+                <div class="slot-sprite-box">
+                  <img id="teamSprite2" class="slot-preview-sprite float-idle" src="" alt="Luchador 2">
+                </div>
+              </div>
+              <div class="setup-team-slot">
+                <span class="slot-num">#3</span>
+                <select id="teamSelect3" class="retro-select"></select>
+                <div class="slot-sprite-box">
+                  <img id="teamSprite3" class="slot-preview-sprite float-idle" src="" alt="Luchador 3">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Separador VS -->
+          <div class="setup-divider-vs">
+            <span class="vs-text pulse-scale">VS</span>
+          </div>
+
+          <!-- Equipo Rival (3 Pokémon) -->
+          <div class="setup-team-section">
+            <div class="rival-setup-header">
+              <h3 class="setup-team-title">🔴 EQUIPO RIVAL</h3>
+              <div class="rival-mode-tabs">
+                <button id="rivalModeRandomBtn" class="retro-btn btn-sm active">🎲 ALEATORIOS</button>
+                <button id="rivalModeManualBtn" class="retro-btn btn-sm">🎯 ELEGIR RIVALES</button>
+              </div>
+            </div>
+
+            <!-- Previews del Rival -->
+            <div class="setup-team-grid">
+              <div class="setup-team-slot">
+                <span class="slot-num">#1</span>
+                <select id="rivalSelect1" class="retro-select" style="display: none;"></select>
+                <div class="slot-sprite-box">
+                  <img id="rivalSprite1" class="slot-preview-sprite float-idle" src="" alt="Rival 1">
+                </div>
+              </div>
+              <div class="setup-team-slot">
+                <span class="slot-num">#2</span>
+                <select id="rivalSelect2" class="retro-select" style="display: none;"></select>
+                <div class="slot-sprite-box">
+                  <img id="rivalSprite2" class="slot-preview-sprite float-idle" src="" alt="Rival 2">
+                </div>
+              </div>
+              <div class="setup-team-slot">
+                <span class="slot-num">#3</span>
+                <select id="rivalSelect3" class="retro-select" style="display: none;"></select>
+                <div class="slot-sprite-box">
+                  <img id="rivalSprite3" class="slot-preview-sprite float-idle" src="" alt="Rival 3">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="battle-setup-footer">
+          <button id="start3v3FightBtn" class="retro-btn btn-action pulse-btn" style="font-size: 0.85rem; padding: 0.85rem 2rem;">¡A LUCHAR 3v3! ⚔️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODAL 3: CAMBIAR DE POKÉMON EN PLENA BATALLA   -->
+    <!-- ============================================== -->
+    <div id="switchPokemonModal" class="retro-modal-overlay" style="display: none;">
+      <div class="retro-modal-window switch-window">
+        <div class="modal-header">
+          <h2 class="modal-title">🔄 CAMBIAR POKÉMON (EQUIPO)</h2>
+          <button id="closeSwitchBtn" class="retro-close-btn" aria-label="Cerrar modal">✖</button>
+        </div>
+        <p class="dialog-text" style="font-size: 0.65rem; margin-bottom: 0.8rem;">¿A QUIÉN QUIERES ENVIAR AL COMBATE?</p>
+        <div id="switchTeamList" class="switch-team-list">
+          <!-- 3 opciones de Pokémon generadas por JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODAL 4: ESTILO GBA: CADENAS DE EVOLUCIÓN      -->
+    <!-- ============================================== -->
+    <div id="evolutionModal" class="retro-modal-overlay" style="display: none;">
+      <div class="retro-modal-window">
+        <div class="modal-header">
+          <h2 class="modal-title">LÍNEA EVOLUTIVA</h2>
+          <button id="closeModalBtn" class="retro-close-btn" aria-label="Cerrar modal">✖</button>
+        </div>
+        <div class="modal-content-frame">
+          <div id="evolutionChainContent" class="evolution-chain-content"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="modalOkBtn" class="retro-btn btn-sm">ENTENDIDO (B)</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Lógica Principal Vanilla JS -->
+  <script src="script.js"></script>
+</body>
+</html>
